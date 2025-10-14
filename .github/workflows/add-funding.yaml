@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        description: 'Repository name. e.g. test-1'
+        description: Repository name. e.g. test-1
         required: false
         default: ''
+      dry_run:
+        description: Run the workflow in dry-run mode
+        type: boolean
+        required: false
+        default: false
 jobs:
   list:
     runs-on: ubuntu-24.04
@@ -103,7 +108,7 @@ jobs:
             const repos = JSON.parse(process.env.REPOS);
             const fundings = new Set(JSON.parse(process.env.FUNDINGS));
             const reposWithPR = new Set(JSON.parse(process.env.REPOS_WITH_PR));
-            const target = repos.filter(item => !fundings.has(item) && !reposWithPR.has(item));
+            const targets = repos.filter(item => !fundings.has(item) && !reposWithPR.has(item));
             console.log(targets);
             return targets;
 
@@ -145,7 +150,8 @@ jobs:
           fi
           echo "$CONTENT" > .github/FUNDING.yml
 
-      - name: Create PR
+      - if: inputs.dry_run == false and github.ref_name == 'main'
+        name: Create PR
         uses: csm-actions/securefix-action@7631c011cad178ac45d0580119ab838c97af6908 # v0.3.2
         with:
           app_id: ${{vars.SECUREFIX_CLIENT_APP_ID}}
