@@ -1,0 +1,128 @@
+---
+name: Add .github/FUNDING.yml
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Repository name. e.g. test-bulk-pr'
+        required: false
+        default: ''
+jobs:
+  list:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      targets: ${{steps.list.outputs.result}}
+    steps:
+      - id: repos
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   {
+        #     "nameWithOwner": "szksh-lab/test-release-verify"
+        #   }
+        # ]
+        run: |
+          if [ -n "${REPO}" ]; then
+            {
+              echo "value<<EOF"
+              echo "[{\"nameWithOwner\":\"szksh-lab/${REPO}\"}]"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "value<<EOF"
+            gh repo list szksh-lab -L 10000 --json nameWithOwner
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: fundings
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   "szksh-lab/test-release-verify"
+        # ]
+        run: |
+          {
+            echo "value<<EOF"
+            gh search code "" \
+              --filename FUNDING.yml \
+              --owner bulk-pr \
+              -L 1000 \
+              --json path,repository \
+              --jq '[.[] | select(.path == ".github/FUNDING.yml") | .repository.nameWithOwner]'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: list
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          REPOS: ${{steps.repos.outputs.value}}
+          FUNDINGS: ${{steps.fundings.outputs.value}}
+        with:
+          script: |
+            const repos = JSON.parse(process.env.REPOS);
+            const fundings = JSON.parse(process.env.FUNDINGS);
+            const targets = repos.filter(item => {
+              return !fundings.includes(item.nameWithOwner);
+            });
+            console.log(targets);
+            return targets;
+
+  create-pr:
+    runs-on: ubuntu-24.04
+    name: create pr (${{matrix.target.nameWithOwner}})
+    needs: [list]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{fromJSON(needs.list.outputs.targets)}}
+    env:
+      REPO: ${{matrix.target.nameWithOwner}}
+    steps:
+      - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        id: token
+        with:
+          app-id: ${{vars.APP_ID}}
+          private-key: ${{secrets.APP_PRIVATE_KEY}}
+          owner: ${{github.repository_owner}}
+          repositories: |
+            ${{env.REPO}}
+          permission-contents: read
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{steps.token.outputs.token}}
+          repository: ${{env.REPO}}
+          persist-credentials: false
+      - run: mkdir -p .github
+      - name: Create .github/FUNDING.yml
+        env:
+          CONTENT: |
+            github:
+              - suzuki-shunsuke
+        run: |
+          if [ -f .github/FUNDING.yml ]; then
+            echo "::notice:: .github/FUNDING.yml already exists"
+            exit 0
+          fi
+          echo "$CONTENT" > .github/FUNDING.yml
+
+      - name: Create PR
+        uses: csm-actions/securefix-action@7631c011cad178ac45d0580119ab838c97af6908 # v0.3.2
+        with:
+          app_id: ${{vars.SECUREFIX_CLIENT_APP_ID}}
+          app_private_key: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
+          server_repository: securefix-server
+          repository: ${{env.REPO}}
+          branch: bulk-pr/add-funding-yml
+          pull_request_title: "chore: add .github/FUNDING.yml"
+          pull_request_base_branch: main
+          pull_request_body: |
+            https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+          pull_request_draft: true
+          project_owner: bulk-pr
+          project_number: 1
