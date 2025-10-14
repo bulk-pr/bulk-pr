@@ -1,0 +1,109 @@
+---
+name: bulk pr
+on: workflow_dispatch
+jobs:
+  list:
+    runs-on: ubuntu-24.04
+    steps:
+      # list repositories: https://cli.github.com/manual/gh_repo_list
+      # https://octokit.github.io/rest.js/v22/#repos-list-for-user
+      # https://octokit.github.io/rest.js/v22/#repos-list-for-org
+      # search code https://cli.github.com/manual/gh_search_code
+      # search prs https://cli.github.com/manual/gh_search_prs
+      # List files by commands such as find or grep
+
+      # {
+      #   "path": "index.md",
+      #   "repository": {
+      #     "id": "MDEwOlJlcG9zaXRvcnkzMzQwNjkwMTE=",
+      #     "isFork": false,
+      #     "isPrivate": false,
+      #     "nameWithOwner": "MichaelCurrin/workflow-builder",
+      #     "url": "https://github.com/MichaelCurrin/workflow-builder"
+      #   }
+      # }
+      # gh search code "actions/checkout user:suzuki-shunsuke" --json repository --jq "unique_by(.repository.id)"
+      - id: list
+        env:
+          GH_TOKEN: ${{github.token}}
+        run: |
+          {
+            echo "value<<EOF"
+            gh api graphql --paginate -q ".data.organization.repositories.nodes" -f query='
+              query($endCursor: String) {
+                organization(login: "szksh-lab") {
+                  repositories(first: 100, after: $endCursor) {
+                    nodes { nameWithOwner }
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                  }
+                }
+              }
+            '
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+  create-pr:
+    runs-on: ubuntu-24.04
+    needs: [list]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{fromJSON(needs.list.outputs.targets)}}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{matrix.target.repo}}
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@v4.0.3
+        with:
+          aqua_version: v2.55.0
+      - run: pinact -v
+        env:
+          AQUA_GITHUB_TOKEN: ${{github.token}}
+      - run: pinact run
+        env:
+          GITHUB_TOKEN: ${{github.token}}
+      # Create a pull request 
+      # - uses: csm-actions/securefix-action@latest
+      #   with:
+      #     app_id: ${{vars.AUTOFIX_TRIGGER_APP_ID}}
+      #     app_private_key: ${{secrets.AUTOFIX_TRIGGER_APP_PRIVATE_KEY}}
+      #     server_repository: securefix-demo-server
+      #     repository: szksh-lab/test-delete-branch
+      #     branch: test-2
+      #     pull_request_title: PR title
+      #     pull_request_base_branch: main
+      #     pull_request_body: PR Body
+      #     pull_request_draft: true
+      #     pull_request_assignees: |
+      #       suzuki-shunsuke
+      #     pull_request_reviewers: |
+      #       suzuki-shunsuke
+      #     pull_request_team_reviewers: |
+      #       sre
+      #     pull_request_labels: |
+      #       enhancement
+      #       yo
+      #     pull_request_comment: Hello, @suzuki-shunsuke
+  result:
+    runs-on: ubuntu-24.04
+    needs: [create-pr]
+    if: always()
+    steps:
+      - env:
+          RESULT: ${{toJson(needs.create-pr.result)}}
+        run: |
+          # result
+          # - pr url
+          # - skipped
+          #   - no change
+          #   - already exists
+          # - failed to create pr
+          #   - failed to update code
+          #   - failed to create pr
+          # job | result
+          # --- | ---
+          # job_id | result
+          echo "" >> "$GITHUB_STEP_SUMMARY"

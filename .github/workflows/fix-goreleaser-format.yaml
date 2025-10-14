@@ -1,0 +1,156 @@
+---
+name: Fix GoReleaser format
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Repository name. e.g. test-bulk-pr'
+        required: false
+        default: ''
+env:
+  BRANCH: bulk-pr-fix-goreleaser-format
+jobs:
+  list:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      targets: ${{steps.list.outputs.value}}
+    steps:
+      # list repositories: https://cli.github.com/manual/gh_repo_list
+      # https://octokit.github.io/rest.js/v22/#repos-list-for-org
+      - id: new-list
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   {
+        #     "nameWithOwner": "szksh-lab/test-release-verify"
+        #   }
+        # ]
+        run: |
+          if [ -n "${REPO}" ]; then
+            {
+              echo "value<<EOF"
+              echo "[{\"nameWithOwner\":\"szksh-lab/${REPO}\"}]"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "value<<EOF"
+            gh search code "" \
+              --filename .goreleaser.yml \
+              --owner suzuki-shunsuke \
+              -L 1000 \
+              --json path,repository \
+              --jq "[.[] | {path, nameWithOwner: .repository.nameWithOwner}]"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: list-project-prs
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   {
+        #     "nameWithOwner": "szksh-lab/test-release-verify"
+        #   }
+        # ]
+        run: |
+          {
+            echo "value<<EOF"
+            gh api graphql --paginate --slurp -f query='
+            query($endCursor: String) {
+              search(first: 100, query:"is:pr owner:lintnet project:szksh-lab/1", type:ISSUE, after:$endCursor) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  ... on PullRequest {
+                    repository {
+                      nameWithOwner
+                    }
+                    number
+                    headRefName
+                  }
+                }
+              }
+            }
+            ' | jq '[.[] | .data.search.nodes] | add | map("\(.repository.nameWithOwner) \(.headRefName)")'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: list
+        uses: actions/github-script@v8
+        env:
+          NEW_PRS: ${{steps.new-list.outputs.value}}
+          PROJECT_PRS: ${{steps.list-project-prs.outputs.value}}
+        with:
+          script: |
+            const newPRs = JSON.parse(process.env.NEW_PRS);
+            const projectPRs = JSON.parse(process.env.PROJECT_PRS);
+            const targets = newPRs.filter(item => {
+              return !projectPRs.includes(`${item.nameWithOwner} ${process.env.BRANCH}`);
+            });
+            console.log(targets);
+            return targets;
+
+  create-pr:
+    runs-on: ubuntu-24.04
+    name: create pr (${{matrix.target.nameWithOwner}})
+    needs: [list]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{fromJSON(needs.list.outputs.targets)}}
+    env:
+      REPO: ${{matrix.target.nameWithOwner}}
+      DIR: bulk-pr-${{github.run_id}}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{env.REPO}}
+          path: ${{env.REPO}}
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          path: ${{env.DIR}}
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@v4.0.3
+        with:
+          aqua_version: v2.55.0
+          working_directory: ${{env.DIR}}/all-repos
+      - run: echo "AQUA_GLOBAL_CONFIG=${AQUA_GLOBAL_CONFIG}" >> "$GITHUB_ENV"
+        env:
+          AQUA_GLOBAL_CONFIG: ${{github.workspace}}/${{env.DIR}}/all-repos/aqua/aqua.yaml
+      - run: |
+          for file in .goreleaser.yml .goreleaser.yaml; do
+            if [ -f "$file" ]; then
+              sed -i 's|format: zip|formats: [zip]|' "$file"
+            fi
+          done
+        working-directory: ${{env.REPO}}
+        env:
+          AQUA_GITHUB_TOKEN: ${{github.token}}
+      - run: goreleaser check
+        working-directory: ${{env.REPO}}
+        env:
+          GITHUB_TOKEN: ${{github.token}}
+      - name: Create PR
+        uses: csm-actions/securefix-action@pr/304
+        with:
+          app_id: ${{vars.SECUREFIX_CLIENT_APP_ID}}
+          app_private_key: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
+          server_repository: securefix-demo-server
+          repository: ${{env.REPO}}
+          root_dir: ${{env.REPO}}
+          branch: ${{env.BRANCH}}
+          pull_request_title: "chore: pin actions"
+          pull_request_base_branch: main
+          pull_request_body: PR Body
+          pull_request_draft: true
+          pull_request_comment: Hello, @suzuki-shunsuke
+          project_owner: szksh-lab
+          project_number: 2

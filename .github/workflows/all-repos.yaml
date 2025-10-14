@@ -1,0 +1,106 @@
+---
+name: pinact all repositories
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Repository name. e.g. test-bulk-pr'
+        required: false
+        default: ''
+jobs:
+  list:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      targets: ${{steps.list.outputs.value}}
+    steps:
+      # list repositories: https://cli.github.com/manual/gh_repo_list
+      # https://octokit.github.io/rest.js/v22/#repos-list-for-org
+      - id: list
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   {
+        #     "nameWithOwner": "szksh-lab/test-release-verify"
+        #   }
+        # ]
+        run: |
+          if [ -n "${REPO}" ]; then
+            {
+              echo "value<<EOF"
+              echo "[{\"nameWithOwner\":\"szksh-lab/${REPO}\"}]"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "value<<EOF"
+            gh api graphql --paginate -q ".data.organization.repositories.nodes" -f query='
+              query($endCursor: String) {
+                organization(login: "szksh-lab") {
+                  repositories(first: 100, after: $endCursor, isArchived:false, isFork:false) {
+                    nodes { nameWithOwner }
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                  }
+                }
+              }
+            '
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+  create-pr:
+    runs-on: ubuntu-24.04
+    name: create pr (${{matrix.target.nameWithOwner}})
+    needs: [list]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{fromJSON(needs.list.outputs.targets)}}
+    env:
+      REPO: ${{matrix.target.nameWithOwner}}
+      DIR: bulk-pr-${{github.run_id}}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{env.REPO}}
+          path: ${{env.REPO}}
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          path: ${{env.DIR}}
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@v4.0.3
+        with:
+          aqua_version: v2.55.0
+          working_directory: ${{env.DIR}}/all-repos
+      - run: echo "AQUA_GLOBAL_CONFIG=${AQUA_GLOBAL_CONFIG}" >> "$GITHUB_ENV"
+        env:
+          AQUA_GLOBAL_CONFIG: ${{github.workspace}}/${{env.DIR}}/all-repos/aqua/aqua.yaml
+      - run: pinact -v
+        working-directory: ${{env.REPO}}
+        env:
+          AQUA_GITHUB_TOKEN: ${{github.token}}
+      - run: pinact run
+        working-directory: ${{env.REPO}}
+        env:
+          GITHUB_TOKEN: ${{github.token}}
+      - name: Create PR
+        uses: csm-actions/securefix-action@pr/304
+        with:
+          app_id: ${{vars.SECUREFIX_CLIENT_APP_ID}}
+          app_private_key: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
+          server_repository: securefix-demo-server
+          repository: ${{env.REPO}}
+          root_dir: ${{env.REPO}}
+          branch: chore-pinact
+          pull_request_title: "chore: pin actions"
+          pull_request_base_branch: main
+          pull_request_body: PR Body
+          pull_request_draft: true
+          pull_request_comment: Hello, @suzuki-shunsuke
+          project_owner: szksh-lab
+          project_number: 2
