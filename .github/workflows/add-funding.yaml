@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        description: 'Repository name. e.g. test-bulk-pr'
+        description: 'Repository name. e.g. test-1'
         required: false
         default: ''
 jobs:
@@ -14,20 +14,19 @@ jobs:
     outputs:
       targets: ${{steps.list.outputs.result}}
     steps:
-      - id: repos
+      - name: List all repositories
+        id: repos
         env:
           GH_TOKEN: ${{github.token}}
           REPO: ${{inputs.repo}}
         # [
-        #   {
-        #     "nameWithOwner": "szksh-lab/test-release-verify"
-        #   }
+        #   "test-1"
         # ]
         run: |
           if [ -n "${REPO}" ]; then
             {
               echo "value<<EOF"
-              echo "[{\"nameWithOwner\":\"szksh-lab/${REPO}\"}]"
+              echo "[\"${REPO}\"]"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
             exit 0
@@ -35,16 +34,51 @@ jobs:
 
           {
             echo "value<<EOF"
-            gh repo list szksh-lab -L 10000 --json nameWithOwner
+            gh repo list "$GITHUB_REPOSITORY_OWNER" \
+              -L 10000 \
+              --json name \
+              --jq '[.[] | .name]'
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - id: fundings
+      - name: List repositories which already have pull requests
+        id: repos_with_prs
         env:
           GH_TOKEN: ${{github.token}}
           REPO: ${{inputs.repo}}
         # [
-        #   "szksh-lab/test-release-verify"
+        #   "test-1"
+        # ]
+        run: |
+          {
+            echo "value<<EOF"
+            gh api graphql --paginate --slurp -f query='
+            query($endCursor: String) {
+              search(first: 100, query:"is:pr project:bulk-pr/1", type:ISSUE, after:$endCursor) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  ... on PullRequest {
+                    repository {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+            ' | jq '[.[] | .data.search.nodes | [.[] | .repository.name]] | add | unique'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: List repositories which already have FUNDING.yml
+        id: fundings
+        env:
+          GH_TOKEN: ${{github.token}}
+          REPO: ${{inputs.repo}}
+        # [
+        #   "test-1"
         # ]
         run: |
           {
@@ -54,7 +88,7 @@ jobs:
               --owner bulk-pr \
               -L 1000 \
               --json path,repository \
-              --jq '[.[] | select(.path == ".github/FUNDING.yml") | .repository.nameWithOwner]'
+              --jq '[.[] | select(.path == ".github/FUNDING.yml") | .repository.name]'
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -63,26 +97,31 @@ jobs:
         env:
           REPOS: ${{steps.repos.outputs.value}}
           FUNDINGS: ${{steps.fundings.outputs.value}}
+          REPOS_WITH_PR: ${{steps.repos_with_prs.outputs.value}}
         with:
           script: |
-            const repos = JSON.parse(process.env.REPOS);
+            const repos = new Set(JSON.parse(process.env.REPOS));
             const fundings = JSON.parse(process.env.FUNDINGS);
-            const targets = repos.filter(item => {
-              return !fundings.includes(item.nameWithOwner);
-            });
+            const reposWithPR = JSON.parse(process.env.REPOS_WITH_PR);
+            const target = [];
+            for (const item of repos) {
+              if (!fundings.has(item) && !reposWithPR.has(item)) {
+                target.push(item);
+              }
+            }
             console.log(targets);
             return targets;
 
   create-pr:
     runs-on: ubuntu-24.04
-    name: create pr (${{matrix.target.nameWithOwner}})
+    name: create pr (${{matrix.target}})
     needs: [list]
     strategy:
       fail-fast: false
       matrix:
         target: ${{fromJSON(needs.list.outputs.targets)}}
     env:
-      REPO: ${{matrix.target.nameWithOwner}}
+      REPO: ${{matrix.target}}
     steps:
       - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
         id: token
