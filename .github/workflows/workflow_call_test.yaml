@@ -1,0 +1,41 @@
+---
+name: test (workflow_call)
+on:
+  workflow_call:
+    secrets:
+      APP_PRIVATE_KEY:
+        description: The private key of the GitHub App which has permission to create a pull request
+        required: true
+      SECUREFIX_CLIENT_PRIVATE_KEY:
+        description: The private key of the GitHub App which has permission to create a pull request via SecureFix
+        required: true
+permissions: {}
+jobs:
+  path-filter:
+    # Get changed files to filter jobs
+    timeout-minutes: 10
+    outputs:
+      add-funding: ${{steps.changes.outputs.add-funding}}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: changes
+        with:
+          filters: |
+            add-funding:
+              - .github/workflows/add-funding.yaml
+
+  test-add-funding:
+    if: needs.path-filter.outputs.add-funding == 'true'
+    uses: ./.github/workflows/add-funding.yaml
+    needs: [path-filter]
+    permissions: {}
+    with:
+      repo: test-1
+      dry_run: true
+    secrets:
+      APP_PRIVATE_KEY: ${{secrets.APP_PRIVATE_KEY}}
+      SECUREFIX_CLIENT_PRIVATE_KEY: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
