@@ -183,7 +183,7 @@ jobs:
             echo "::notice:: .github/FUNDING.yml already exists"
             exit 0
           fi
-          echo "$CONTENT" > .github/FUNDING.yml
+          echo -n "$CONTENT" > .github/FUNDING.yml
 
       - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
