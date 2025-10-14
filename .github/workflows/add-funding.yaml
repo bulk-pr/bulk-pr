@@ -185,7 +185,7 @@ jobs:
           fi
           echo "$CONTENT" > .github/FUNDING.yml
 
-      - if: inputs.dry_run == 'false' && github.ref_name == 'main'
+      - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
         uses: csm-actions/securefix-action@7631c011cad178ac45d0580119ab838c97af6908 # v0.3.2
         with:
