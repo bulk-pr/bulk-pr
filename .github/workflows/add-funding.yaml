@@ -1,6 +1,26 @@
 ---
 name: Add .github/FUNDING.yml
 on:
+  workflow_call:
+    inputs:
+      repo:
+        type: string
+        description: Repository name. e.g. test-1
+        required: false
+        default: ''
+      dry_run:
+        description: Run the workflow in dry-run mode
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      APP_PRIVATE_KEY:
+        description: The private key of the GitHub App which has permission to create a pull request
+        required: true
+      SECUREFIX_CLIENT_PRIVATE_KEY:
+        description: The private key of the GitHub App which has permission to create a pull request via SecureFix
+        required: true
+
   workflow_dispatch:
     inputs:
       repo:
@@ -16,13 +36,24 @@ jobs:
   list:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions: {}
     outputs:
       targets: ${{steps.list.outputs.result}}
     steps:
+      - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        id: token
+        with:
+          app-id: ${{vars.APP_ID}}
+          private-key: ${{secrets.APP_PRIVATE_KEY}}
+          owner: ${{github.repository_owner}}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-organization-projects: read
+
       - name: List all repositories
         id: repos
         env:
-          GH_TOKEN: ${{github.token}}
+          GH_TOKEN: ${{steps.token.outputs.token}}
           REPO: ${{inputs.repo}}
         # [
         #   "test-1"
@@ -49,7 +80,7 @@ jobs:
       - name: List repositories which already have pull requests
         id: repos_with_prs
         env:
-          GH_TOKEN: ${{github.token}}
+          GH_TOKEN: ${{steps.token.outputs.token}}
           REPO: ${{inputs.repo}}
         # [
         #   "test-1"
@@ -80,7 +111,7 @@ jobs:
       - name: List repositories which already have FUNDING.yml
         id: fundings
         env:
-          GH_TOKEN: ${{github.token}}
+          GH_TOKEN: ${{steps.token.outputs.token}}
           REPO: ${{inputs.repo}}
         # [
         #   "test-1"
@@ -115,6 +146,8 @@ jobs:
   create-pr:
     runs-on: ubuntu-24.04
     name: create pr (${{matrix.target}})
+    timeout-minutes: 10
+    permissions: {}
     needs: [list]
     strategy:
       fail-fast: false
@@ -132,11 +165,13 @@ jobs:
           repositories: |
             ${{env.REPO}}
           permission-contents: read
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           token: ${{steps.token.outputs.token}}
           repository: ${{github.repository_owner}}/${{env.REPO}}
           persist-credentials: false
+
       - run: mkdir -p .github
       - name: Create .github/FUNDING.yml
         env:
