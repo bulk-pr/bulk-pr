@@ -33,10 +33,11 @@ The documentation or sample workflows may contain errors.
 
 ## Setup
 
-- Set up **Securefix Action**
+- [Set up Securefix Action](https://github.com/csm-actions/securefix-action?tab=readme-ov-file#getting-started)
   - Allow PR creation from the default branch of the `bulk-pr` repo
   - Grant **organization projects: write** permission
 - Create the `bulk-pr` repository
+  - This repository is an example of `bulk-pr` repository
 - Create a **GitHub App**
   - Webhook: disabled
   - Permissions:
