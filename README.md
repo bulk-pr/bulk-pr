@@ -14,45 +14,36 @@ The documentation or sample workflows may contain errors.
 
 ## Features
 
-* **Established scheme, documentation, and sample code**
-
-  * You can implement it easily by following the provided documentation and samples instead of designing everything from scratch.
-* **Batch operations via GitHub Actions**
-
-  * Environment-independent
-  * Enables pre-review before execution
-  * No need to grant individuals access to sensitive Secrets
-* **Centralized workflows in a dedicated GitHub repository**
-
-  * For convenience, this repository is called the `bulk-pr` repository
-  * Ensures security and governance
-  * Accumulates operational knowledge in one place, making it easier to reference and reuse existing workflows
-* **PR creation via GitHub App**
-
-  * Not tied to a specific individual
-* **Secure PR creation with Securefix Action**
-
-  * No need to pass PR creation secrets to task workflows, ensuring safety
-* **PR management via GitHub Projects**
-
-  * Each task can have its own dedicated GitHub Project
+- **Established scheme, documentation, and sample code**
+  - You can implement it easily by following the provided documentation and samples instead of designing everything from scratch.
+- **Batch operations via GitHub Actions**
+  - Environment-independent
+  - Enables pre-review before execution
+  - No need to grant individuals access to sensitive Secrets
+- **Centralized workflows in a dedicated GitHub repository**
+  - For convenience, this repository is called the `bulk-pr` repository
+  - Ensures security and governance
+  - Accumulates operational knowledge in one place, making it easier to reference and reuse existing workflows
+- **PR creation via GitHub App**
+  - Not tied to a specific individual
+- **Secure PR creation with Securefix Action**
+  - No need to pass PR creation secrets to task workflows, ensuring safety
+- **PR management via GitHub Projects**
+  - Each task can have its own dedicated GitHub Project
 
 ## Setup
 
-* Set up **Securefix Action**
-
-  * Allow PR creation from the default branch of the `bulk-pr` repo
-  * Grant **organization projects: write** permission
-* Create the `bulk-pr` repository
-* Create a **GitHub App**
-
-  * Webhook: disabled
-  * Permissions:
-
-    * contents: read
-    * pull requests: read
-    * organization projects: read
-  * Installed repositories: `bulk-pr` and the target repositories to be modified
+- Set up **Securefix Action**
+  - Allow PR creation from the default branch of the `bulk-pr` repo
+  - Grant **organization projects: write** permission
+- Create the `bulk-pr` repository
+- Create a **GitHub App**
+  - Webhook: disabled
+  - Permissions:
+    - contents: read
+    - pull requests: read
+    - organization projects: read
+  - Installed repositories: `bulk-pr` and the target repositories to be modified
 
 ## Repository Structure
 
@@ -78,13 +69,12 @@ However, if you do so, be careful about **security risks** (e.g., tampered exter
 4. Test the workflow with test data; fix as needed
 5. Run the workflow
 6. Once the task is completed, move the workflow file from `.github/workflows/<task name>.yaml` to `tasks/<task name>/workflow.yaml`
-
-   * Leaving unused workflows under `.github/workflows` can clutter the directory
-   * You can delete them, but keeping them in `tasks/<task name>` helps as references for similar future tasks
+   - Leaving unused workflows under `.github/workflows` can clutter the directory
+   - You can delete them, but keeping them in `tasks/<task name>` helps as references for similar future tasks
 
 ## Example
 
-* [Example of pinning versions with pinact](.github/workflows/all-repos.yaml)
+- [Example of pinning versions with pinact](.github/workflows/all-repos.yaml)
 
 ## Workflow Structure
 
@@ -95,8 +85,8 @@ However, due to constraints of OIDC and GitHub Environment Secrets, they are con
 
 Each workflow consists of two jobs:
 
-* **list** — generates a list of PR targets (passed to the matrix job)
-* **create-pr** — modifies code and creates PRs
+- **list** — generates a list of PR targets (passed to the matrix job)
+- **create-pr** — modifies code and creates PRs
 
 ## list Job
 
@@ -217,8 +207,8 @@ query {
 <details>
 <summary>Notes</summary>
 
-* `gh search prs` is convenient for finding PRs, but it doesn’t return branch names.
-* Using `projectV2` in GraphQL to fetch all items retrieves issues as well, making it inefficient.
+- `gh search prs` is convenient for finding PRs, but it doesn’t return branch names.
+- Using `projectV2` in GraphQL to fetch all items retrieves issues as well, making it inefficient.
 
 </details>
 
@@ -235,13 +225,13 @@ To prevent that, always pin scripts by full commit SHA, verify checksums, or man
 
 Other batch operations you might want include:
 
-* Closing PRs
-* Merging PRs
-* Approving PRs
-* Commenting on PRs
-* Updating PRs (labels, reviewers, assignees, title, description, etc.)
-* Removing PRs from Projects
-* Adding commits to PRs
+- Closing PRs
+- Merging PRs
+- Approving PRs
+- Commenting on PRs
+- Updating PRs (labels, reviewers, assignees, title, description, etc.)
+- Removing PRs from Projects
+- Adding commits to PRs
 
 For closing or merging PRs, a simple local script is usually sufficient.
 Running them via GitHub Actions provides benefits like reviewability and environment consistency, but the advantages are smaller than for PR creation.
@@ -257,8 +247,8 @@ Of course, if you prefer running them through GitHub Actions, you can implement 
 The simplest way to create PRs in bulk is to write a local script using your personal access token.
 However, this approach causes problems in large organizations:
 
-* Excessive PR notifications
-* Reviewers may expect the PR author (you) to handle the PR, making ownership transfer difficult
+- Excessive PR notifications
+- Reviewers may expect the PR author (you) to handle the PR, making ownership transfer difficult
 
 Since PRs are authored by you, all notifications (reviews, merges, etc.) will go to your account — very noisy, especially if integrated with Slack.
 Also, managing many PRs yourself is impractical, especially when repository ownership is distributed.
