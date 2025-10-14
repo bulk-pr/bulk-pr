@@ -100,15 +100,10 @@ jobs:
           REPOS_WITH_PR: ${{steps.repos_with_prs.outputs.value}}
         with:
           script: |
-            const repos = new Set(JSON.parse(process.env.REPOS));
-            const fundings = JSON.parse(process.env.FUNDINGS);
-            const reposWithPR = JSON.parse(process.env.REPOS_WITH_PR);
-            const target = [];
-            for (const item of repos) {
-              if (!fundings.has(item) && !reposWithPR.has(item)) {
-                target.push(item);
-              }
-            }
+            const repos = JSON.parse(process.env.REPOS);
+            const fundings = new Set(JSON.parse(process.env.FUNDINGS));
+            const reposWithPR = new Set(JSON.parse(process.env.REPOS_WITH_PR));
+            const target = repos.filter(item => !fundings.has(item) && !reposWithPR.has(item));
             console.log(targets);
             return targets;
 
