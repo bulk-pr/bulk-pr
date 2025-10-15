@@ -79,8 +79,6 @@ However, if you do so, be careful about **security risks** (e.g., tampered exter
 
 ## Workflow Structure
 
-See [Example](.github/workflows/all-repos.yaml)
-
 Workflows are implemented with `workflow_dispatch`.
 However, due to constraints of OIDC and GitHub Environment Secrets, they are configured to run only on the **default branch**.
 
