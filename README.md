@@ -73,13 +73,11 @@ However, if you do so, be careful about **security risks** (e.g., tampered exter
    - Leaving unused workflows under `.github/workflows` can clutter the directory
    - You can delete them, but keeping them in `tasks/<task name>` helps as references for similar future tasks
 
-## Example
+## Examples
 
-- [Example of pinning versions with pinact](.github/workflows/all-repos.yaml)
+- [Add .github/FUNDING.yml](.github/workflows/add-funding.yaml)
 
 ## Workflow Structure
-
-See [Example](.github/workflows/all-repos.yaml)
 
 Workflows are implemented with `workflow_dispatch`.
 However, due to constraints of OIDC and GitHub Environment Secrets, they are configured to run only on the **default branch**.
@@ -89,7 +87,7 @@ Each workflow consists of two jobs:
 - **list** — generates a list of PR targets (passed to the matrix job)
 - **create-pr** — modifies code and creates PRs
 
-## list Job
+### list Job
 
 The `list` job generates the list of repositories or files where PRs will be created.
 It usually uses the GitHub API, or shell commands like `find` or `grep`.
@@ -111,7 +109,7 @@ If you need to recreate a PR, remove it from the project first.
 Since matrix jobs can run only up to **256 jobs**, only 256 PRs are processed per run.
 If there are more, execute the workflow multiple times.
 
-## create-pr Job
+### create-pr Job
 
 The `create-pr` job performs:
 
@@ -124,94 +122,45 @@ Be careful to avoid path conflicts.
 
 When using Securefix Action, PR creation is **asynchronous**, so even if the workflow succeeds, PRs may not have been created yet.
 
-## Testing Workflows
+### Dry Run
 
-Running a workflow that creates many PRs at once without testing is risky.
-Design workflows to accept test data via `workflow_dispatch` and create only a single PR for verification.
-Once the PR title, description, and changes are confirmed, you can safely execute the workflow for all repositories.
+The Dry Run Mode lists targets and runs `create-pr` job but doesn't create pull requests.
+
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/add-funding.yaml#L11-L15
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/add-funding.yaml#L188
+
+### Trying to create a single pull request
+
+If the input is passed, `list` job returns a single target.
+This is useful to confirm if the pull request is created expectedly before creating all pull requests.
+
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/add-funding.yaml#L26-L29
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/add-funding.yaml#L62-L69
+
+### Testing a task in CI
+
+You can test workflows via pull_request events.
+
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/workflow_call_test.yaml#L18
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/workflow_call_test.yaml#L28-L29
+- https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/workflow_call_test.yaml#L31-L41
 
 ## Searching Repositories, Code, or PRs via GitHub API
 
-If you just need to list repositories, `gh repo list` is convenient:
+Examples:
 
-```sh
-{
-  echo "value<<EOF"
-  gh repo list szksh-lab -L 10000 --json nameWithOwner
-  echo "EOF"
-} >> "$GITHUB_OUTPUT"
-```
+https://github.com/bulk-pr/bulk-pr/blob/ae814f6e1bda7909f688b9ecf301c218100582f7/.github/workflows/add-funding.yaml#L43-L144
 
-Note that filtering options like `--no-archived` or `--source` limit results to **1,000 repositories** due to GitHub API restrictions.
+Notes:
 
-```sh
-gh repo list szksh-lab -L 1000 --json nameWithOwner --no-archived --source
-```
-
-Search API queries also return at most **1,000 results**:
-[https://docs.github.com/en/graphql/reference/queries#search](https://docs.github.com/en/graphql/reference/queries#search)
-
-To use more flexible queries, try `gh search repos`.
-To search for code, use [gh search code](https://cli.github.com/manual/gh_search_code):
-
-```sh
-gh search code "" --filename .goreleaser.yml --owner suzuki-shunsuke -L 1000 --json path,repository
-```
-
-Example output:
-
-```json
-[
-  {
-    "path": ".goreleaser.yml",
-    "repository": {
-      "id": "R_kgDOMOw9Zg",
-      "isFork": false,
-      "isPrivate": false,
-      "nameWithOwner": "suzuki-shunsuke/ghatm",
-      "url": "https://github.com/suzuki-shunsuke/ghatm"
-    }
-  }
-]
-```
-
-You can process the results with `jq`:
-
-```sh
-gh search code "" --filename .goreleaser.yml --owner suzuki-shunsuke -L 1000 --json path,repository --jq "[.[] | {path, nameWithOwner: .repository.nameWithOwner}]"
-```
-
-To search PRs within a GitHub Project, use the GraphQL API:
-
-```sh
-gh api graphql --paginate -f query='
-query {
-  search(first: 100, query:"is:pr project:szksh-lab/1", type:ISSUE) {
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
-    nodes {
-      ... on PullRequest {
-        repository {
-          nameWithOwner
-        }
-        number
-        headRefName
-      }
-    }
-  }
-}
-'
-```
-
-<details>
-<summary>Notes</summary>
-
-- `gh search prs` is convenient for finding PRs, but it doesn’t return branch names.
-- Using `projectV2` in GraphQL to fetch all items retrieves issues as well, making it inefficient.
-
-</details>
+- [GraphQL `search` query returns at most 1,000 results.](https://docs.github.com/en/graphql/reference/queries#search)
+  > Perform a search across resources, returning a maximum of 1,000 results.
+- [Search API returns at most 1,000 results](https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28)
+  > GitHub REST API provides up to 1,000 results for each search.
+- [gh repo list](https://cli.github.com/manual/gh_repo_list) returns at most 1,000 results if options like `--no-archived` and `--source` are used
+- [Search Code syntax](https://docs.github.com/en/search-github/searching-on-github/searching-code)
+- [gh search](https://cli.github.com/manual/gh_search)
+- [gh api](https://cli.github.com/manual/gh_api)
 
 ## Security Considerations
 
