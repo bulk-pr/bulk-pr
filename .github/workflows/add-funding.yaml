@@ -141,7 +141,7 @@ jobs:
             const reposWithPR = new Set(JSON.parse(process.env.REPOS_WITH_PR));
             const targets = repos.filter(item => !fundings.has(item) && !reposWithPR.has(item));
             console.log(targets);
-            return targets;
+            return targets.slice(0, 256);
 
   create-pr:
     runs-on: ubuntu-24.04
