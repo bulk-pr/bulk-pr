@@ -91,17 +91,7 @@ Each workflow consists of two jobs:
 
 The `list` job generates the list of repositories or files where PRs will be created.
 It usually uses the GitHub API, or shell commands like `find` or `grep`.
-
 Accessing other private repositories via the GitHub API requires a GitHub App.
-
-```sh
-{
-  echo "value<<EOF"
-  gh repo list szksh-lab -L 10000 --json nameWithOwner
-  echo "EOF"
-} >> "$GITHUB_OUTPUT"
-```
-
 Workflows must be **idempotent** — already-created PRs must be excluded from the list.
 bulk-pr ensures this by using a dedicated GitHub Project per task and skipping repositories that already have PRs listed in the project.
 If you need to recreate a PR, remove it from the project first.
@@ -175,11 +165,11 @@ To prevent that, always pin scripts by full commit SHA, verify checksums, or man
 
 Other batch operations you might want include:
 
-- Closing PRs
-- Merging PRs
-- Approving PRs
-- Commenting on PRs
-- Updating PRs (labels, reviewers, assignees, title, description, etc.)
+- Closing PRs: [gh pr close](https://cli.github.com/manual/gh_pr_close)
+- Merging PRs: [gh pr merge](https://cli.github.com/manual/gh_pr_merge)
+- Approving PRs: [gh pr review](https://cli.github.com/manual/gh_pr_review)
+- Commenting on PRs: [gh pr comment](https://cli.github.com/manual/gh_pr_comment)
+- Updating PRs (labels, reviewers, assignees, title, description, etc.): [gh pr edit](https://cli.github.com/manual/gh_pr_edit)
 - Removing PRs from Projects
 - Adding commits to PRs
 
@@ -189,6 +179,33 @@ PR creation often requires repository checkout and script execution, where GitHu
 For closing/merging, local execution via GitHub CLI is typically enough.
 
 Of course, if you prefer running them through GitHub Actions, you can implement workflows similar to PR creation.
+
+e.g.
+
+```sh
+gh api graphql --paginate --slurp -f query='
+query($endCursor: String) {
+  search(first: 100, query:"is:pr is:open project:bulk-pr/1", type:ISSUE, after:$endCursor) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      ... on PullRequest {
+        repository {
+          nameWithOwner
+        }
+        number
+      }
+    }
+  }
+}
+' | jq -r '[.[] | .data.search.nodes] | add | .[] | "\(.repository.nameWithOwner) \(.number)"' |
+while read -r repo number; do
+  echo "Closing PR #$number in $repo ..."
+  gh pr close -R "$repo" "$number" -d -c "outdated"
+done
+```
 
 ## Why bulk-pr?
 
