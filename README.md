@@ -96,8 +96,10 @@ Workflows must be **idempotent** — already-created PRs must be excluded from t
 bulk-pr ensures this by using a dedicated GitHub Project per task and skipping repositories that already have PRs listed in the project.
 If you need to recreate a PR, remove it from the project first.
 
-Since matrix jobs can run only up to **256 jobs**, only 256 PRs are processed per run.
-If there are more, execute the workflow multiple times.
+Matrix jobs can run only up to 256 jobs, and if `list` job outputs over 256 jobs, the workflow would fail.
+To execute over 256 jobs, you need to run the workflow multiple times.
+
+https://github.com/bulk-pr/bulk-pr/blob/51f6ed4b7751d5e483ff2a158ef46091aaf528bb/.github/workflows/add-funding.yaml#L149
 
 ### create-pr Job
 
