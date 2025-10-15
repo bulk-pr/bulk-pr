@@ -140,10 +140,16 @@ jobs:
             const fundings = new Set(JSON.parse(process.env.FUNDINGS));
             const reposWithPR = new Set(JSON.parse(process.env.REPOS_WITH_PR));
             const targets = repos.filter(item => !fundings.has(item) && !reposWithPR.has(item));
-            console.log(targets);
+            console.log({
+              repos: repos,
+              fundings: [...fundings],
+              reposWithPR: [...reposWithPR],
+              targets: targets,
+            });
             return targets.slice(0, 256);
 
   create-pr:
+    if: "join(fromJSON(needs.list.outputs.targets), '') != ''"
     runs-on: ubuntu-24.04
     name: create pr (${{matrix.target}})
     timeout-minutes: 10
