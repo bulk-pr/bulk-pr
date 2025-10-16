@@ -161,6 +161,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{github.token}}
 
+      - if: ${{ inputs.dry_run || github.ref_name != 'main' }}
+        name: Show diff (Dry run mode)
+        run: |
+          echo "::notice:: Dry run mode. Skipping creating a pull request."
+          git status
+          echo "---"
+          echo ""
+          git diff
+          echo "---"
+          echo ""
+          git ls-files --others --exclude-standard | while read -r file; do
+            echo "New file ($file):"
+            cat $file
+            echo "---"
+            echo ""
+          done
+
       - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
         uses: csm-actions/securefix-action@038b1b962c37adef7a6612aa91cbfc4d6644feb1 # v0.3.4
