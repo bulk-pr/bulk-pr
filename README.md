@@ -76,6 +76,7 @@ However, if you do so, be careful about **security risks** (e.g., tampered exter
 ## Examples
 
 - [Add .github/FUNDING.yml](.github/workflows/add-funding.yaml)
+- [Pin GitHub Actions by full length commit SHA](.github/workflows/pinact.yaml)
 
 ## Workflow Structure
 
