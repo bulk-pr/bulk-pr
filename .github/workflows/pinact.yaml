@@ -163,6 +163,7 @@ jobs:
 
       - if: ${{ inputs.dry_run || github.ref_name != 'main' }}
         name: Show diff (Dry run mode)
+        working-directory: ${{env.REPO}}
         run: |
           echo "::notice:: Dry run mode. Skipping creating a pull request."
           git status
