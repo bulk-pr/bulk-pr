@@ -21,6 +21,18 @@ on:
         description: The private key of the GitHub App which has permission to create a pull request via SecureFix
         required: true
 
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: Repository name. e.g. test-1
+        required: false
+        default: ''
+      dry_run:
+        description: Run the workflow in dry-run mode
+        type: boolean
+        required: false
+        default: false
+
 jobs:
   list:
     runs-on: ubuntu-24.04
