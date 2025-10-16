@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       add-funding: ${{steps.changes.outputs.add-funding}}
+      pinact: ${{steps.changes.outputs.pinact}}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -27,10 +28,25 @@ jobs:
           filters: |
             add-funding:
               - .github/workflows/add-funding.yaml
+            pinact:
+              - .github/workflows/pinact.yaml
+              - tasks/pinact/**
 
   test-add-funding:
     if: needs.path-filter.outputs.add-funding == 'true'
     uses: ./.github/workflows/add-funding.yaml
+    needs: [path-filter]
+    permissions: {}
+    with:
+      repo: test-1
+      dry_run: true
+    secrets:
+      APP_PRIVATE_KEY: ${{secrets.APP_PRIVATE_KEY}}
+      SECUREFIX_CLIENT_PRIVATE_KEY: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
+
+  test-pinact:
+    if: needs.path-filter.outputs.pinact == 'true'
+    uses: ./.github/workflows/pinact.yaml
     needs: [path-filter]
     permissions: {}
     with:
