@@ -194,8 +194,6 @@ jobs:
       - if: ${{ inputs.dry_run || github.ref_name != 'main' }}
         name: Show diff (Dry run mode)
         uses: bulk-pr/diff-action@d10770b8facffce07143231268942b34418bb67b # v0.0.1
-        with:
-          working-directory: ${{env.REPO}}
 
       - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
