@@ -48,7 +48,8 @@ jobs:
     if: needs.path-filter.outputs.pinact == 'true'
     uses: ./.github/workflows/pinact.yaml
     needs: [path-filter]
-    permissions: {}
+    permissions:
+      contents: read
     with:
       repo: test-1
       dry_run: true
