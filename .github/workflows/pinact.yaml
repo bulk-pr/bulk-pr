@@ -215,4 +215,4 @@ jobs:
 
             ## Note
 
-            [@${{github.actor}} created this pull request by GitHub Actions.](${{github.server_url}}/${{github.repository_owner}}/${{github.repository}}/actions/runs/${{github.run_id}})
+            [@${{github.actor}} created this pull request by GitHub Actions.](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
