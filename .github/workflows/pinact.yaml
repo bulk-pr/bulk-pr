@@ -24,6 +24,10 @@ on:
 jobs:
   list:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    outputs:
+      targets: ${{steps.list.outputs.result}}
     steps:
       - uses: actions/create-github-app-token@bf559f85448f9380bcfa2899dbdc01eb5b37be3a # v3.0.0-beta.2
         id: token
