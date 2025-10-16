@@ -193,20 +193,7 @@ jobs:
 
       - if: ${{ inputs.dry_run || github.ref_name != 'main' }}
         name: Show diff (Dry run mode)
-        run: |
-          echo "::notice:: Dry run mode. Skipping creating a pull request."
-          git status
-          echo "---"
-          echo ""
-          git diff
-          echo "---"
-          echo ""
-          git ls-files --others --exclude-standard | while read -r file; do
-            echo "New file ($file):"
-            cat $file
-            echo "---"
-            echo ""
-          done
+        uses: bulk-pr/diff-action@d10770b8facffce07143231268942b34418bb67b # v0.0.1
 
       - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
