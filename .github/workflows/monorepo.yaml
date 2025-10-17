@@ -179,6 +179,7 @@ jobs:
           repository: ${{github.repository_owner}}/${{env.REPO}}
           branch: ${{env.BRANCH}}
           pull_request_title: "chore: Update the version to ${{env.VERSION}} (${{env.DIR}})"
+          pull_request_base_branch: main
           pull_request_body: |
             ## What?
 
