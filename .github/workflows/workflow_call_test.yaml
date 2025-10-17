@@ -17,6 +17,7 @@ jobs:
     outputs:
       add-funding: ${{steps.changes.outputs.add-funding}}
       pinact: ${{steps.changes.outputs.pinact}}
+      monorepo: ${{steps.changes.outputs.monorepo}}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -31,6 +32,8 @@ jobs:
             pinact:
               - .github/workflows/pinact.yaml
               - tasks/pinact/**
+            monorepo:
+              - .github/workflows/monorepo.yaml
 
   test-add-funding:
     if: needs.path-filter.outputs.add-funding == 'true'
@@ -52,6 +55,19 @@ jobs:
       contents: read
     with:
       repo: test-1
+      dry_run: true
+    secrets:
+      APP_PRIVATE_KEY: ${{secrets.APP_PRIVATE_KEY}}
+      SECUREFIX_CLIENT_PRIVATE_KEY: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
+
+  test-monorepo:
+    if: needs.path-filter.outputs.monorepo == 'true'
+    uses: ./.github/workflows/monorepo.yaml
+    needs: [path-filter]
+    permissions:
+      contents: read
+    with:
+      dir: foo
       dry_run: true
     secrets:
       APP_PRIVATE_KEY: ${{secrets.APP_PRIVATE_KEY}}
