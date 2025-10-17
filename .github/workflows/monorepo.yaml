@@ -146,6 +146,21 @@ jobs:
     env:
       DIR: ${{matrix.target.dir}}
       BRANCH: ${{matrix.target.branch}}
+      REPOSITORY: ${{github.repository_owner}}/${{env.REPO}}
+      PULL_REQUEST_TITLE: "chore: Update the version to ${{env.VERSION}} (${{env.DIR}})"
+      PULL_REQUEST_BODY: |
+        ## What?
+
+        This PR updates the version to ${{env.VERSION}}.
+
+        ## Why?
+
+        Keep the version up-to-date.
+
+        ## Note
+
+        [@${{github.actor}} created this pull request by GitHub Actions.](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
+
     steps:
       - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
         id: token
@@ -169,6 +184,19 @@ jobs:
         name: Show diff (Dry run mode)
         uses: bulk-pr/diff-action@d10770b8facffce07143231268942b34418bb67b # v0.0.1
 
+      - env:
+          SUMMARY: |
+            ## Pull Request Summary
+
+            repository: ${{env.REPOSITORY}}
+            branch: ${{env.BRANCH}}
+            title: ${{env.PULL_REQUEST_TITLE}}
+
+            ${{env.PULL_REQUEST_BODY}}
+
+        run: |
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
       - if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         name: Create PR
         uses: csm-actions/securefix-action@038b1b962c37adef7a6612aa91cbfc4d6644feb1 # v0.3.4
@@ -176,21 +204,10 @@ jobs:
           app_id: ${{vars.SECUREFIX_CLIENT_APP_ID}}
           app_private_key: ${{secrets.SECUREFIX_CLIENT_PRIVATE_KEY}}
           server_repository: securefix-server
-          repository: ${{github.repository_owner}}/${{env.REPO}}
+          repository: ${{env.REPOSITORY}}
           branch: ${{env.BRANCH}}
-          pull_request_title: "chore: Update the version to ${{env.VERSION}} (${{env.DIR}})"
+          pull_request_title: ${{env.PULL_REQUEST_TITLE}}
           pull_request_base_branch: main
-          pull_request_body: |
-            ## What?
-
-            This PR updates the version to ${{env.VERSION}}.
-
-            ## Why?
-
-            Keep the version up-to-date.
-
-            ## Note
-
-            [@${{github.actor}} created this pull request by GitHub Actions.](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
+          pull_request_body: ${{env.PULL_REQUEST_BODY}}
           project_owner: ${{github.repository_owner}}
           project_number: ${{env.PROJECT_NUMBER}}
